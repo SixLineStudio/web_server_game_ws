@@ -10,17 +10,4 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.model('User', userSchema);
 
 
-/*const inventorySchema = new mongoose.Schema({
-    userID: String,
-    money: Number,
-    items: [{
-        name: String,
-        quantity: Number,
-        weight: Number // Пример добавления дополнительного числового поля
-    }]
-});
-
-// Создание модели инвентаря на основе схемы
-const Inventory = mongoose.model('Inventory', inventorySchema);*/
-
 module.exports = User
