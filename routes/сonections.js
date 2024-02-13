@@ -30,7 +30,7 @@ function handleConnection(ws) {
             const action = routes[data.type]
             const client = clients.get(ws);
             if (action && client) {
-                action(client, message);
+                action(ws, client, message);
             } else {
                 console.log("Типа: " + data.type + " для сообщения не существует")
             }
