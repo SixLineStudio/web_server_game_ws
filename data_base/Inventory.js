@@ -5,7 +5,9 @@ const inventorySchema = new mongoose.Schema({
     money: Number,
     items: [{
         id: String,
-        rarity: Number // Пример добавления дополнительного числового поля
+        level: Number,
+        rarity: Number,
+        isEquipped: Boolean
     }]
 });
 

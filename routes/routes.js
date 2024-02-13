@@ -10,7 +10,7 @@ const routes = {
 
         const data = JSON.parse(message)
         data.items.forEach((value, index, array) => {
-            let Item = {id: value.id, rarity: value.rarity};
+            let Item = {id: value.id, level: value.level, rarity: value.rarity};
             for (let x = 0; x < value.amount; ++x) {
                 itemsToAdd.push(Item)
             }
@@ -33,14 +33,12 @@ const routes = {
 
         const inventory = await Inventory.findOne({userID});
         if (inventory) {
-           /* const modifiedInventory = inventory.map(item => {
-                return { ...item, type: 'get_inventory_data' };*/
-                console.log( {...inventory._doc, type:'get_inventory_data'})// Добавляем переменную type
+            /* const modifiedInventory = inventory.map(item => {
+                 return { ...item, type: 'get_inventory_data' };*/
+            console.log({...inventory._doc, type: 'get_inventory_data'})// Добавляем переменную type
 
-            ws.send(JSON.stringify( {...inventory._doc, type:'get_inventory_data'}));
+            ws.send(JSON.stringify({...inventory._doc, type: 'get_inventory_data'}));
         }
-
-
     },
 
     'SomeFun2': (ws, userID, message) => {
