@@ -63,7 +63,7 @@ async function connectUser(ws, id) {
     }
 }
 
-function registerUser(userID) {
+function registerUser(ws, userID) {
 
     /* if (typeof userID !== "string"){
          console.log('userID не стринг:', userID);
@@ -98,6 +98,8 @@ function registerUser(userID) {
         .catch(err => {
             console.error('Ошибка при сохранении Инвентаря:', err);
         });
+    clients.set(ws, userID);
+    console.log("Пользователь подключен:" + user.userID)
 }
 
 /*async function findUser(userID) {
