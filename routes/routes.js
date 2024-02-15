@@ -4,34 +4,33 @@ const ObjectId = require('mongoose').Types.ObjectId
 const routes = {
 
 
-    'add_items': (ws, userID, message) => {
-        console.log("Add Items Fun")
+    'add_items': async (ws, userID, message) => {
+        try {
 
-        let itemsToAdd = [];
 
-        const data = JSON.parse(message)
-        data.items.forEach((value, index, array) => {
-            let Item = {id: value.id, level: value.level, rarity: value.rarity, isEquipped: false};
-            for (let x = 0; x < value.amount; ++x) {
-                itemsToAdd.push(Item)
-            }
-        })
+            let itemsToAdd = [];
 
-        Inventory.findOneAndUpdate(
-            {userID: userID}, // Условие поиска документа
-            {$push: {items: {$each: itemsToAdd}}}, // Обновление поля 'items'
-            {new: true, upsert: true}).then(updatedInventory => {// Опции: возвращает обновленный документ, создает новый, если не найден
-            console.log('Инвентарь успешно обновлен:', updatedInventory);
-        })
-            .catch(error => {
-                console.error('Ошибка при обновлении инвентаря:', error);
-            });
+            const data = JSON.parse(message)
+            data.items.forEach((value, index, array) => {
+                let Item = {id: value.id, level: value.level, rarity: value.rarity, isEquipped: false};
+                for (let x = 0; x < value.amount; ++x) {
+                    itemsToAdd.push(Item)
+                }
+            })
+
+            await Inventory.findOneAndUpdate(
+                {userID: userID}, // Условие поиска документа
+                {$push: {items: {$each: itemsToAdd}}}, // Обновление поля 'items'
+                {new: true, upsert: true}).then(updatedInventory => {// Опции: возвращает обновленный документ, создает новый, если не найден
+            })
+        } catch (e) {
+            console.log(e)
+        }
 
     },
 
 
     'request_inventory_data': async (ws, userID, message) => {
-
         await requestInventoryData(ws, userID);
     },
 
@@ -132,30 +131,27 @@ const routes = {
 
 
     'unequip_item': (ws, userID, message) => {
+        try {
+            const data = JSON.parse(message);
+            const ItemId = new ObjectId(data._id);
+            Inventory.findOneAndUpdate(
+                {userID, 'items._id': ItemId},
+                {$set: {'items.$.isEquipped': false}},
+                {new: true}
+            ).then(updatedInventory => {
+                if (!updatedInventory) {
+                    console.log('Инвентарь пользователя не найден');
+                    return;
+                }
 
-        console.log(message)
-        console.log("анеквип запущен")
-        // try {
-        const data = JSON.parse(message);
-        const ItemId = new ObjectId(data._id);
-        Inventory.findOneAndUpdate(
-            {userID, 'items._id': ItemId},
-            {$set: {'items.$.isEquipped': false}},
-            {new: true}
-        ).then(updatedInventory => {
-            if (!updatedInventory) {
-                console.log('Инвентарь пользователя не найден');
-                return;
-            }
-
-            console.log('Обновленный инвентарь:', updatedInventory);
-        })
-            .catch(error => {
-                console.error('Произошла ошибка при обновлении инвентаря:', error);
-            });
-        /* } catch (e) {
-             console.log(e)
-         }*/
+                console.log('Обновленный инвентарь:', updatedInventory);
+            })
+                .catch(error => {
+                    console.error('Произошла ошибка при обновлении инвентаря:', error);
+                });
+        } catch (e) {
+            console.error(e)
+        }
     },
 
 
@@ -170,7 +166,6 @@ const routes = {
             const inventory = await Inventory.findOne({userID});
 
             if (!inventory) {
-                console.log('Инвентарь не найден');
                 return;
             }
 
@@ -246,14 +241,19 @@ async function addNewItemToInventory(userID, newItemData) {
 }
 
 async function requestInventoryData(ws, userID) {
-    const inventory = await Inventory.findOne({userID});
-    if (inventory) {
-        /* const modifiedInventory = inventory.map(item => {
-             return { ...item, type: 'get_inventory_data' };*/
-        console.log({...inventory._doc, type: 'get_inventory_data'})// Добавляем переменную type
+    try {
+        const inventory = await Inventory.findOne({userID});
+        if (inventory) {
+            /* const modifiedInventory = inventory.map(item => {
+                 return { ...item, type: 'get_inventory_data' };*/
+            console.log({...inventory._doc, type: 'get_inventory_data'})// Добавляем переменную type
 
-        ws.send(JSON.stringify({...inventory._doc, type: 'get_inventory_data'}));
+            ws.send(JSON.stringify({...inventory._doc, type: 'get_inventory_data'}));
+        }
+    } catch (e) {
+        console.error(e)
     }
+
 }
 
 module.exports = routes
