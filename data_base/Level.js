@@ -1,16 +1,16 @@
 const mongoose = require('mongoose');
 
-const inventorySchema = new mongoose.Schema({
+const levelsSchema = new mongoose.Schema({
     userID: String,
+    levelsCompleted: [String],
     levels: [{
         id: String,
-        completed: Number,
-        inLevelRewards: Number,
-        completedRewardReceived: Boolean
+        progress: Number,
+        rewardsReceived: [Number]
     }]
 });
 
 // Создание модели инвентаря на основе схемы
-const Level = mongoose.model('Level', inventorySchema);
+const Level = mongoose.model('Level', levelsSchema);
 
 module.exports = Level

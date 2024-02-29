@@ -59,9 +59,17 @@ function handleConnection(ws) {
 async function connectUser(ws, id) {
     try {
 
+
+        const iv = Buffer.from('c0d33d3a5f1d9e2ac48188f9f7dcbbd3', 'hex'); // Используйте один и тот же IV при каждом запуске
+
         const cipher = crypto.createCipheriv(algorithm, Buffer.from(EncryptionKey, 'hex'), iv);
         let encryptedUserId = cipher.update(id, 'utf8', 'hex');
         encryptedUserId += cipher.final('hex');
+
+
+        /*     const cipher = crypto.createCipheriv(algorithm, Buffer.from(EncryptionKey, 'hex'), iv);
+             let encryptedUserId = cipher.update(id, 'utf8', 'hex');
+             encryptedUserId += cipher.final('hex');*/
 
         console.log("зашифрованый пользователь:" + encryptedUserId)
 
@@ -132,7 +140,8 @@ async function registerUser(ws, userID) {
 
         const newLevels = new Level({
             userID: userID,
-            levels: []
+            levelsCompleted: [String],
+            levels: [Object]
         });
 
         const levels = await newLevels.save();

@@ -1,4 +1,5 @@
 const Inventory = require('../data_base/Inventory')
+const Level = require("../data_base/Level");
 const ObjectId = require('mongoose').Types.ObjectId
 
 const routes = {
@@ -163,6 +164,10 @@ const routes = {
             const secondItemId = new ObjectId(data._id_2);
             const thirdItemId = new ObjectId(data._id_3);
 
+            if (firstItemId === secondItemId || secondItemId === thirdItemId) {
+                return;
+            }
+
             const inventory = await Inventory.findOne({userID});
 
             if (!inventory) {
@@ -184,7 +189,7 @@ const routes = {
                     if (firstItem.id === secondItem.id && secondItem.id === thirdItem.id) {
                         //Удаляю предметы с инвентаря
                         const updatedInventory = await Inventory.findOneAndUpdate(
-                            { /* ваш критерий поиска инвентаря */},
+                            {userID: userID},
                             {
                                 $pull: {
                                     items: {_id: {$in: [firstItemId, secondItemId, thirdItemId]}}
@@ -215,8 +220,183 @@ const routes = {
         }
     },
 
+    'request_levels_data': async (ws, userID, message) => {
 
-    'SomeFun': (ws, userID, message) => {
+        try {
+            const levels = await Level.findOne({userID});
+            if (levels) {
+                ws.send(JSON.stringify({...levels._doc, type: 'get_levels_data'}));
+            }
+        } catch (e) {
+            console.error(e)
+        }
+    },
+
+
+    'change_level_progress': async (ws, userID, message) => {
+        try {
+            const data = JSON.parse(message);
+
+            // Находим уровень по userID и ID
+            const foundLevel = await Level.findOne({userID, "levels.id": data._id});
+
+            if (foundLevel) {
+                const levelIndex = foundLevel.levels.findIndex(level => level.id === data._id);
+
+                if (levelIndex !== -1 && data.progress > foundLevel.levels[levelIndex].progress) {
+                    // Обновляем прогресс уровня
+                    const updatedLevel = await Level.findOneAndUpdate(
+                        {userID, "levels.id": data._id},
+                        {$set: {"levels.$.progress": data.progress}},
+                        {new: true}
+                    );
+                    console.log("Обновленные данные в левеле:", updatedLevel);
+                } else {
+                    console.log("Новое значение прогресса меньше.");
+                }
+            } else {
+                // Если уровень не найден, создаем новый
+                const newLevel = {
+                    id: data._id,
+                    progress: data.progress,
+                    rewardsReceived: []
+                };
+
+                // Добавляем новый уровень в массив levels
+                const updatedLevel = await Level.findOneAndUpdate(
+                    {userID},
+                    {$push: {levels: newLevel}},
+                    {new: true}
+                );
+                console.log("Создан новый уровень:", updatedLevel);
+            }
+        } catch (e) {
+            console.error("Ошибка:", e);
+        }
+    },
+
+
+    /*'change_level_progress': (ws, userID, message) => {
+        try {
+            const data = JSON.parse(message);
+
+            Level.findOne({ userID: userID, "levels.id": data._id }, (err, foundLevel) => {
+                if (err) {
+                    console.error("Ошибка при поиске уровня:", err);
+                } else {
+                    // Если уровень найден
+                    if (foundLevel) {
+                        // Найдем индекс уровня в массиве levels
+                        const levelIndex = foundLevel.levels.findIndex(level => level.id === data._id);
+                        // Если индекс найден
+                        if (levelIndex !== -1) {
+                            // Проверяем, если новое значение прогресса меньше текущего
+                            if (data.progress < foundLevel.levels[levelIndex].progress) {
+                                // Обновляем только если новое значение меньше текущего
+                                Level.findOneAndUpdate(
+                                    // Условие поиска
+                                    { userID: userID, "levels.id": data._id },
+                                    // Обновление
+                                    {
+                                        $set: {
+                                            "levels.$.progress": data.progress
+                                        }
+                                    },
+                                    // Опции
+                                    { new: true },
+                                    // Обратный вызов
+                                    (err, updatedLevel) => {
+                                        if (err) {
+                                            console.error("Ошибка при обновлении данных в левеле:", err);
+                                        } else {
+                                            console.log("Обновленные данные в левеле:", updatedLevel);
+                                        }
+                                    }
+                                );
+                            } else {
+                                console.log("Новое значение прогресса больше или равно текущему значению.");
+                            }
+                        } else {
+                            console.log("Уровень с указанным id не найден.");
+                        }
+                    } else {
+                        // Если уровень не найден, создаем новый
+                        const newLevel = {
+                            id: data._id,
+                            progress: data.progress,
+                            rewardsReceived: []
+                        };
+                        // Добавляем новый уровень в массив levels
+                        Level.findOneAndUpdate(
+                            { userID: userID },
+                            { $push: { levels: newLevel } },
+                            { new: true },
+                            (err, updatedLevel) => {
+                                if (err) {
+                                    console.error("Ошибка при создании нового уровня:", err);
+                                } else {
+                                    console.log("Создан новый уровень:", updatedLevel);
+                                }
+                            }
+                        );
+                    }
+                }
+            });
+        } catch (e) {
+            console.log(e);
+        }
+    },*/
+
+
+    'complete_level': async (ws, userID, message) => {
+        try {
+            const data = JSON.parse(message);
+            const levelIDToAdd = data._id;
+
+            // Обновляем только если levelIDToAdd отсутствует в массиве levelsCompleted
+            const updatedLevel = await Level.findOneAndUpdate(
+                {userID, levelsCompleted: {$ne: levelIDToAdd}},
+                {$addToSet: {levelsCompleted: levelIDToAdd}},
+                {new: true, upsert: true}
+            );
+
+            console.log("Обновленные уровни:", updatedLevel);
+        } catch (e) {
+            console.error("Ошибка:", e);
+        }
+    },
+
+
+    'receive_level_reward': async (ws, userID, message) => {
+        try {
+            const data = JSON.parse(message);
+            const {levelID, rewardLevel} = data;
+
+            const foundLevel = await Level.findOne({userID, "levels.id": levelID});
+
+            if (foundLevel) {
+                const level = foundLevel.levels.find(level => level.id === levelID);
+
+                if (level && level.progress >= rewardLevel) {
+                    // Добавляем награду в массив rewardsReceived
+                    const updatedLevel = await Level.findOneAndUpdate(
+                        {userID, "levels.id": levelID},
+                        {$push: {"levels.$.rewardsReceived": rewardLevel}},
+                        {new: true}
+                    );
+                    console.log("Награда успешно добавлена:", updatedLevel);
+                } else {
+                    console.log("Прогресс недостаточно высокий для получения награды или уровень не найден.");
+                }
+            } else {
+                console.log("Уровень не найден.");
+            }
+        } catch (e) {
+            console.error("Ошибка:", e);
+        }
+    },
+
+    'SomeFun3': (ws, userID, message) => {
 
 
     },
@@ -232,10 +412,10 @@ async function addNewItemToInventory(userID, newItemData) {
             {new: true, upsert: true} // Опции: возвращает обновленный документ, создает новый, если не найден
         );
 
-        console.log('Инвентарь успешно обновлен:', updatedInventory);
+        console.log('Предмет добавлен:');
         return updatedInventory;
     } catch (error) {
-        console.error('Ошибка при обновлении инвентаря:', error);
+        console.error('Ошибка при добавлении предмета:', error);
         throw error;
     }
 }
@@ -246,7 +426,7 @@ async function requestInventoryData(ws, userID) {
         if (inventory) {
             /* const modifiedInventory = inventory.map(item => {
                  return { ...item, type: 'get_inventory_data' };*/
-            console.log({...inventory._doc, type: 'get_inventory_data'})// Добавляем переменную type
+            //  console.log({...inventory._doc, type: 'get_inventory_data'})// Добавляем переменную type
 
             ws.send(JSON.stringify({...inventory._doc, type: 'get_inventory_data'}));
         }
