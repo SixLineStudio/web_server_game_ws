@@ -8,6 +8,10 @@ const inventorySchema = new mongoose.Schema({
         level: Number,
         rarity: Number,
         isEquipped: Boolean
+    }],
+    heroes: [{
+        id: String,
+        level: Number,
     }]
 });
 

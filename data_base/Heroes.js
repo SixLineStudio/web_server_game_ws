@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 
 const heroesSchema = new mongoose.Schema({
     userID: String,
-    usedHero: String,
     heroes: [{
         id: String,
         level: Number,

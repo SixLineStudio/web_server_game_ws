@@ -77,6 +77,7 @@ async function connectUser(ws, id) {
         if (user) {
             clients.set(ws, encryptedUserId);
             console.log("Пользователь подключен:" + encryptedUserId)
+            OnUserConnected(ws);
         } else {
             registerUser(ws, encryptedUserId);
 
@@ -108,7 +109,8 @@ async function registerUser(ws, userID) {
         const newInventory = new Inventory({
             userID: userID,
             money: 0,
-            items: []
+            items: [],
+            heroes: [{id: "BaseHero", level: 1}]
 
         });
 
@@ -121,21 +123,21 @@ async function registerUser(ws, userID) {
             console.error('Ошибка при сохранении Инвентаря:', err);
         }
 
-        const newHeroes = new Heroes({
-            userID: userID,
-            usedHero: "BaseHero",
-            heroes: [{
-                id: "BaseHero",
-                level: 1
-            }
-            ]
-        });
-        const heroes = await newHeroes.save();
-        if (heroes) {
-            console.log("Герои созданы")
-        } else {
-            console.log("Ошибка при создании Героев")
-        }
+        /*     const newHeroes = new Heroes({
+                 userID: userID,
+                 usedHero: "BaseHero",
+                 heroes: [{
+                     id: "BaseHero",
+                     level: 1
+                 }
+                 ]
+             });
+             const heroes = await newHeroes.save();
+             if (heroes) {
+                 console.log("Герои созданы")
+             } else {
+                 console.log("Ошибка при создании Героев")
+             }*/
 
 
         const newLevels = new Level({
@@ -154,8 +156,21 @@ async function registerUser(ws, userID) {
         clients.set(ws, userID);
         console.log("Пользователь подключен:" + userID)
 
+        OnUserConnected(ws);
     } catch (e) {
         console.error(e);
+    }
+
+}
+
+
+function OnUserConnected(ws) {
+
+    try {
+        const Obj = {type: "user_connected"}
+        ws.send(JSON.stringify(Obj))
+    } catch (e) {
+        console.log(e)
     }
 
 }
