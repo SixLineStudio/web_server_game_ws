@@ -1,5 +1,6 @@
 const Inventory = require('../data_base/Inventory')
 const Level = require("../data_base/Level");
+const [InventoryData, lootBoxPrice] = require("../static_data/InventoryData");
 const ObjectId = require('mongoose').Types.ObjectId
 
 const routes = {
@@ -205,7 +206,6 @@ const routes = {
                                 rarity: rarity + 1,
                                 isEquipped: isEquipped
                             })
-                            console.log("3")
                             await requestInventoryData(ws, userID);
 
                         }
@@ -328,11 +328,11 @@ const routes = {
 
     'buy_hero': async (ws, userID, message) => {
 
-        const data = JSON.parse(message);
-        const heroId = data._id;
-
 
         try {
+
+            const data = JSON.parse(message);
+            const heroId = data._id;
             // Находим инвентарь пользователя по userID
             const inventory = await Inventory.findOne({userID: userID});
 
@@ -345,7 +345,7 @@ const routes = {
                 throw new Error("У вас недостаточно денег для покупки героя.");
             }
 
-            const isHeroExist = inventory.heroes.some(hero => hero.id === heroID);
+            const isHeroExist = inventory.heroes.some(hero => hero.id === heroId);
             if (isHeroExist) {
                 throw new Error("Герой с указанным ID уже существует в вашем инвентаре.");
             }
@@ -356,7 +356,7 @@ const routes = {
             // Создаем нового героя
             const newHero = {
                 id: heroId, // Генерируйте уникальный id для героя
-                level: 1 // Уровень по умолчанию
+                level: 0 // Уровень по умолчанию
             };
 
             // Добавляем нового героя в массив героев инвентаря пользователя
@@ -386,7 +386,7 @@ const routes = {
 
         try {
             // Находим инвентарь пользователя по userID
-            const inventory = await Inventory.findOne({ userID: userID });
+            const inventory = await Inventory.findOne({userID: userID});
 
             if (!inventory) {
                 throw new Error("Инвентарь пользователя не найден.");
@@ -398,8 +398,8 @@ const routes = {
                 level: hero.level
             }));
 
-           const jsonData = JSON.stringify({type: 'get_heroes_data', heroes: heroesList});
-           ws.send(jsonData)
+            const jsonData = JSON.stringify({type: 'get_heroes_data', heroes: heroesList});
+            ws.send(jsonData)
 
         } catch (error) {
             console.error("Произошла ошибка:", error.message);
@@ -411,10 +411,11 @@ const routes = {
 
         try {
 
+            const data = JSON.parse(message);
             const heroId = data._id;
 
             // Находим инвентарь пользователя по userID
-            const inventory = await Inventory.findOne({ userID: userID });
+            const inventory = await Inventory.findOne({userID: userID});
 
             if (!inventory) {
                 throw new Error("Инвентарь пользователя не найден.");
@@ -428,7 +429,7 @@ const routes = {
             }
 
             // Подсчитываем стоимость улучшения уровня героя
-            const upgradeCost = inventory.heroes[heroIndex].level * 200;
+            const upgradeCost = (inventory.heroes[heroIndex].level + 1) * 200;
 
             // Проверяем, достаточно ли у пользователя денег для улучшения
             if (inventory.money < upgradeCost) {
@@ -436,13 +437,17 @@ const routes = {
             }
 
             // Уменьшаем количество денег у пользователя
-            inventory.money -= upgradeCost;
+
+
+            const money = inventory.money -= upgradeCost;
 
             // Увеличиваем уровень героя
             inventory.heroes[heroIndex].level++;
-
+            updateMoneyOnClient(ws, money);
             // Сохраняем изменения
             await inventory.save();
+
+
             console.log("Уровень героя успешно увеличен!");
 
         } catch (error) {
@@ -452,12 +457,56 @@ const routes = {
 
     },
 
+
+    'open_loot_box': async (ws, userID, message) => {
+
+        try {
+            const data = JSON.parse(message);
+            const inventory = await Inventory.findOne({userID});
+
+
+            const price = lootBoxPrice[data._id];
+            if (inventory.money >=price ) {
+
+                // Обновляем уровень предмета
+                inventory.money = Math.max(inventory.money - price, 0);
+
+                const items = InventoryData.EquipmentItems;
+                const itemID = items[Math.floor(Math.random() * items.length)]
+
+
+                await addNewItemToInventory(userID, {
+                    id: itemID,
+                    level: 1,
+                    rarity: 1,
+                    isEquipped: false
+                });
+
+                // Сохраняем изменения в базе данных
+                await inventory.save();
+
+                await lootBoxResult(ws, userID, itemID);
+
+            }
+        } catch (e) {
+            console.log(e);
+        }
+    },
+
+
     'SomeFun': (ws, userID, message) => {
 
 
     },
 };
 
+
+async function lootBoxResult(ws, userID, itemID) {
+
+    const dataToSend = {type: "loot_box_result", item: itemID};
+    ws.send(JSON.stringify(dataToSend));
+    await requestInventoryData(ws, userID);
+}
 
 async function addNewItemToInventory(userID, newItemData) {
     try {
@@ -490,6 +539,19 @@ async function requestInventoryData(ws, userID) {
         console.error(e)
     }
 
+}
+
+
+function updateMoneyOnClient(ws, money) {
+
+    try {
+        const dataObject = {type: "money_data", money: money};
+        const jsonData = JSON.stringify(dataObject);
+        console.log(jsonData)
+        ws.send(jsonData);
+    } catch (e) {
+        console.log(e);
+    }
 }
 
 module.exports = routes

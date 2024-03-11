@@ -110,7 +110,7 @@ async function registerUser(ws, userID) {
             userID: userID,
             money: 0,
             items: [],
-            heroes: [{id: "BaseHero", level: 1}]
+            heroes: [{id: "BaseHero", level: 0}]
 
         });
 
