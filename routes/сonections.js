@@ -3,22 +3,15 @@ const routes = require('./routes')
 const clients = new Map();
 const User = require('../data_base/User')
 const Inventory = require('../data_base/Inventory')
-const Heroes = require("../data_base/Heroes");
 const Level = require("../data_base/Level");
-const EncryptionKey = require("../static_data/Keys");
-const algorithm = 'aes-256-cbc'; // Алгоритм шифрования
-const iv = crypto.randomBytes(16); // Инициализирующий вектор
-
-const cipher = crypto.createCipheriv(algorithm, Buffer.from(EncryptionKey, 'hex'), iv);
-
+const jwt = require('jsonwebtoken')
+const secretKey = require("../static_data/Keys");
+const {v4: uuidv4} = require("uuid")
+const {generateJwt} = require("./functions");
 
 function handleConnection(ws) {
 
-    //  const id = randomUUID();
-
     console.log('Новое подключение');
-
-
     // Обработчик события при получении сообщения от клиента
     ws.on('message', function incoming(message) {
 
@@ -27,11 +20,10 @@ function handleConnection(ws) {
         const data = JSON.parse(message);
 
 
+        console.log(data)
+
         if (data.type === 'user_data') {
-
-            console.log(`User Data: ${data.id}`);
-            connectUser(ws, data.id);
-
+            connectUser(ws, data);
         } else {
 
             const action = routes[data.type]
@@ -44,8 +36,6 @@ function handleConnection(ws) {
             }
 
         }
-
-        //ws.send(`Вы отправили сообщение`);
     });
 
     // Обработчик события при закрытии соединения с клиентом
@@ -56,30 +46,25 @@ function handleConnection(ws) {
 }
 
 
-async function connectUser(ws, id) {
+async function connectUser(ws, data) {
     try {
+        let user;
+        if (data.jwt === '') {
+            if (data.platform === 'a') {
+                user = await User.findOne({playId: data.id})
+            } else {
+                user = await User.findOne({appStoreId: data.id})
+            }
+        } else {
+            user = await User.findOne({jwt: data.jwt});
+        }
 
-
-        const iv = Buffer.from('c0d33d3a5f1d9e2ac48188f9f7dcbbd3', 'hex'); // Используйте один и тот же IV при каждом запуске
-
-        const cipher = crypto.createCipheriv(algorithm, Buffer.from(EncryptionKey, 'hex'), iv);
-        let encryptedUserId = cipher.update(id, 'utf8', 'hex');
-        encryptedUserId += cipher.final('hex');
-
-
-        /*     const cipher = crypto.createCipheriv(algorithm, Buffer.from(EncryptionKey, 'hex'), iv);
-             let encryptedUserId = cipher.update(id, 'utf8', 'hex');
-             encryptedUserId += cipher.final('hex');*/
-
-        console.log("зашифрованый пользователь:" + encryptedUserId)
-
-        const user = await User.findOne({userID: encryptedUserId});
         if (user) {
-            clients.set(ws, encryptedUserId);
-            console.log("Пользователь подключен:" + encryptedUserId)
+            clients.set(ws, user.userID);
+            console.log("Пользователь подключен:" + user.userID)
             OnUserConnected(ws);
         } else {
-            registerUser(ws, encryptedUserId);
+            registerUser(ws, data);
 
         }
     } catch (error) {
@@ -87,87 +72,76 @@ async function connectUser(ws, id) {
     }
 }
 
-async function registerUser(ws, userID) {
-    try {
+async function registerUser(ws, data) {
+    /*   try {*/
 
-        console.log(typeof userID)
-        // Создание нового пользователя
-        const newUser = new User({
-            userID: userID,
+    const userId = data.id
 
+    // Создаю новый веб токен.
+    const jwtToken = generateJwt();
+
+    //Генерирую ID пользователья @todo Сделать проверку на существования пользователя с таким ID
+    const uuid = uuidv4();
+    // Создание нового пользователя
+    const newUser = new User({
+        userID: uuid,
+        jwt: jwtToken,
+        playId: data.platform === "a" ? userId : "",
+        appStoreId: data.platform === "i" ? userId : "",
+    });
+
+    newUser.save()
+        .then(user => {
+            console.log('Пользователь сохранен:', user);
+        })
+        .catch(err => {
+            console.error('Ошибка при сохранении пользователя:', err);
         });
 
-        newUser.save()
-            .then(user => {
-                console.log('Пользователь сохранен:', user);
-            })
-            .catch(err => {
-                console.error('Ошибка при сохранении пользователя:', err);
-            });
+
+    const newInventory = new Inventory({
+        userID: uuid,
+        money: 100,
+        items: [],
+        heroes: [{id: "BaseHero", level: 0}]
+    });
 
 
-        const newInventory = new Inventory({
-            userID: userID,
-            money: 0,
-            items: [],
-            heroes: [{id: "BaseHero", level: 0}]
+    const inventory = await newInventory.save();
+    if (inventory) {
+        console.log('Инвентарь сохранен:', inventory);
+    } else {
+        console.error('Ошибка при сохранении Инвентаря:', err);
+    }
 
-        });
+    const newLevels = new Level({
+        userID: uuid,
+        levelsCompleted: [],
+        levels: []
+    });
 
-
-        const inventory = await newInventory.save();
-        if (inventory) {
-            console.log('Инвентарь сохранен:', inventory);
-
-        } else {
-            console.error('Ошибка при сохранении Инвентаря:', err);
-        }
-
-        /*     const newHeroes = new Heroes({
-                 userID: userID,
-                 usedHero: "BaseHero",
-                 heroes: [{
-                     id: "BaseHero",
-                     level: 1
-                 }
-                 ]
-             });
-             const heroes = await newHeroes.save();
-             if (heroes) {
-                 console.log("Герои созданы")
-             } else {
-                 console.log("Ошибка при создании Героев")
-             }*/
-
-
-        const newLevels = new Level({
-            userID: userID,
-            levelsCompleted: [String],
-            levels: [Object]
-        });
-
-        const levels = await newLevels.save();
-        if (heroes) {
+    const levels = await newLevels.save();
+    /*    if (heroes) {
             console.log("Уровни созданы")
         } else {
             console.log("Ошибка при создании Уровней")
-        }
-        console.log("Пользователь зарегестрирован:" + userID)
-        clients.set(ws, userID);
-        console.log("Пользователь подключен:" + userID)
+        }*/
+    console.log("Пользователь зарегестрирован:" + userId)
+    clients.set(ws, uuid);
+    console.log("Пользователь подключен:" + userId)
 
-        OnUserConnected(ws);
-    } catch (e) {
-        console.error(e);
-    }
+    OnUserConnected(ws, jwtToken);
+    /*  } catch (e) {
+          console.error(e);
+      }*/
 
 }
 
 
-function OnUserConnected(ws) {
+function OnUserConnected(ws, jwt) {
 
     try {
-        const Obj = {type: "user_connected"}
+        const Obj = {type: "user_connected", jwt}
         ws.send(JSON.stringify(Obj))
     } catch (e) {
         console.log(e)
@@ -195,14 +169,3 @@ function OnUserConnected(ws) {
 
 module.exports = {handleConnection};
 
-
-/*
-
-// Создаем дешифр AES
-const decipher = crypto.createDecipher('aes-256-cbc', encryptionKey);
-
-// Расшифровываем ID пользователя
-let decryptedUserId = decipher.update(encryptedUserId, 'hex', 'utf8');
-decryptedUserId += decipher.final('utf8');
-
-console.log('Расшифрованный ID:', decryptedUserId);*/

@@ -4,6 +4,9 @@ const mongoose = require('mongoose');
 // Определение схемы пользователя
 const userSchema = new mongoose.Schema({
     userID: String,
+    jwt: String,
+    playId: String,
+    appStoreId: String,
 });
 
 // Создание модели пользователя на основе схемы
