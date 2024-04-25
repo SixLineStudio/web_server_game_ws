@@ -6,7 +6,7 @@ const levelsSchema = new mongoose.Schema({
     levels: [{
         id: String,
         progress: Number,
-        rewardsReceived: [Number]
+        rewardsReceived: Number
     }]
 });
 

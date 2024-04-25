@@ -1,0 +1,64 @@
+{
+  "levels": {
+    "Level_1": {
+      "1": {
+        "items": ["item1", "item2"],
+        "money": 100,
+        "gems": 400
+      },
+      "2": {
+        "items": ["item3", "item4"],
+        "money": 150,
+        "gems": 450
+      }
+    },
+    "Level_2": {
+      "1": {
+        "items": ["item5", "item6"],
+        "money": 200,
+        "gems": 500
+      },
+      "2": {
+        "items": ["item7", "item8"],
+        "money": 250,
+        "gems": 550
+      }
+    },
+    "Level_3": {
+      "1": {
+        "items": ["item9", "item10"],
+        "money": 300,
+        "gems": 600
+      },
+      "2": {
+        "items": ["item11", "item12"],
+        "money": 350,
+        "gems": 650
+      }
+    },
+    "Level_4": {
+      "1": {
+        "items": ["item13", "item14"],
+        "money": 400,
+        "gems": 700
+      },
+      "2": {
+        "items": ["item15", "item16"],
+        "money": 450,
+        "gems": 750
+      }
+    },
+    "Level_5": {
+      "1": {
+        "items": ["item17", "item18"],
+        "money": 500,
+        "gems": 800
+      },
+      "2": {
+        "items": ["item19", "item20"],
+        "money": 550,
+        "gems": 850
+      }
+    }
+  }
+}

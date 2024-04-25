@@ -2,6 +2,8 @@ const Inventory = require('../data_base/Inventory')
 const Level = require("../data_base/Level");
 const [InventoryData, lootBoxPrice] = require("../static_data/InventoryData");
 const ObjectId = require('mongoose').Types.ObjectId
+const Rewards = require("../Components/LevelRewards")
+
 
 const routes = {
 
@@ -236,268 +238,540 @@ const routes = {
 
     'change_level_progress': async (ws, userID, message) => {
         try {
+
+            console.log("change_level_progress!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            console.log("rewards: " + Rewards);
             const data = JSON.parse(message);
 
-            // Находим уровень по userID и ID
-            const foundLevel = await Level.findOne({userID, "levels.id": data._id});
+            // Находим уровень по userID
+            const foundLevel = await Level.findOne({userID});
 
             if (foundLevel) {
-                const levelIndex = foundLevel.levels.findIndex(level => level.id === data._id);
+                // Проверяем, существует ли подуровень с указанным _id
+                if (foundLevel.levels.find(level => level.id === data._id)) {
+                    const levelIndex = foundLevel.levels.findIndex(level => level.id === data._id);
+                    const level = foundLevel.levels[levelIndex];
 
-                if (levelIndex !== -1 && data.progress > foundLevel.levels[levelIndex].progress) {
-                    // Обновляем прогресс уровня
-                    const updatedLevel = await Level.findOneAndUpdate(
-                        {userID, "levels.id": data._id},
-                        {$set: {"levels.$.progress": data.progress}},
-                        {new: true}
-                    );
-                    console.log("Обновленные данные в левеле:", updatedLevel);
+                    // Проверяем, была ли уже получена награда за этот подуровень
+                    if (!level.rewardsReceived.includes(data.progress)) {
+
+                        if (Rewards.levels[data._id]) {
+                            // Проверяем, существует ли подуровень с указанным _id в наградах для данного уровня
+                            if (Rewards.levels[data._id][data.progress]) {
+                                // Если награда существует, можно начать процесс получения награды
+
+                                Rewards.levels[data._id][data.progress].items.forEach((value) => {
+                                    addNewItemToInventory(userID, {
+                                        id: value,
+                                        level: 1,
+                                        rarity: 0,
+                                        isEquipped: false
+                                    })
+                                })
+
+                                const inventory = await Inventory.findOne({userID: userID});
+                                if (inventory) {
+                                    if (Rewards.levels[data._id][data.progress].money || Rewards.levels[data._id][data.progress].gems) {
+
+                                        if (Rewards.levels[data._id][data.progress].money) {
+                                            inventory.money = inventory.money + Rewards.levels[data._id][data.progress].money;
+                                        }
+                                        if (Rewards.levels[data._id][data.progress].gems) {
+                                            inventory.gems = inventory.gems + Rewards.levels[data._id][data.progress].gems;
+                                        }
+                                        inventory.save();
+                                    }
+
+                                }
+
+
+                                // Добавляем _id подуровня в список полученных наград
+                                foundLevel.levels[levelIndex].rewardsReceived.push(data.progress);
+
+
+                                console.log("Награда получена успешно.");
+                            } else {
+                                console.log("Подуровень с указанным _id не найден в наградах для данного уровня.");
+                            }
+
+                            console.log("Награда получена успешно.");
+                        } else {
+                            console.log("Награда за этот подуровень уже получена.");
+                        }
+                    } else {
+                        console.log("Уровень с указанным _id не найден.");
+                    }
+
+                    foundLevel.levels[levelIndex].progress = data.progress;
+                    // Сохраняем обновленный уровень
+                    await foundLevel.save();
+
                 } else {
-                    console.log("Новое значение прогресса меньше.");
+
+
+                    // Если уровень не найден, создаем новый
+                    const newLevel = {
+                        id: data._id,
+                        progress: data.progress,
+                        rewardsReceived: []
+                    };
+
+                    // foundLevel.levels.push(newLevel);
+                    //   Добавляем новый уровень в массив levels
+                    const updatedLevel = await Level.findOneAndUpdate(
+                        {userID},
+                        {$push: {levels: newLevel}},
+                        {new: false}
+                    )
+                    console.log("Создан новый уровень:", updatedLevel);
+
                 }
             } else {
-                // Если уровень не найден, создаем новый
-                const newLevel = {
-                    id: data._id,
-                    progress: data.progress,
-                    rewardsReceived: []
-                };
-
-                // Добавляем новый уровень в массив levels
-                const updatedLevel = await Level.findOneAndUpdate(
-                    {userID},
-                    {$push: {levels: newLevel}},
-                    {new: true}
-                );
-                console.log("Создан новый уровень:", updatedLevel);
+                /* // Если уровень не найден, создаем новый
+                 const newLevel = {
+                     id: data._id,
+                     progress: data.progress,
+                     rewardsReceived: []
+                 };
+                  // Добавляем новый уровень в массив levels
+                  const updatedLevel = await Level.findOneAndUpdate(
+                      {userID},
+                      {$push: {levels: newLevel}},
+                      {new: false}
+                  );
+                 console.log("Создан новый уровень:", updatedLevel);*/
             }
-        } catch (e) {
+        } catch
+            (e) {
             console.error("Ошибка:", e);
         }
-    },
 
 
-    'complete_level': async (ws, userID, message) => {
-        try {
+        /* try {
+             const data = JSON.parse(message);
+
+             // Находим уровень по userID и ID
+             const foundLevel = await Level.findOne({userID, "levels.id": data._id});
+
+             if (foundLevel) {
+                 const levelIndex = foundLevel.levels.findIndex(level => level.id === data._id);
+
+                 if (levelIndex !== -1 && data.progress > foundLevel.levels[levelIndex].progress) {
+                     // Обновляем прогресс уровня
+                     const updatedLevel = await Level.findOneAndUpdate(
+                         {userID, "levels.id": data._id},
+                         {$set: {"levels.$.progress": data.progress}},
+                         {new: false}
+                     );
+
+
+                     console.log("Обновленные данные в левеле:", updatedLevel);
+                 } else {
+                     console.log("Новое значение прогресса меньше.");
+                 }
+             } else {
+                 // Если уровень не найден, создаем новый
+                 const newLevel = {
+                     id: data._id,
+                     progress: data.progress,
+                     rewardsReceived: []
+                 };
+
+                 // Добавляем новый уровень в массив levels
+                 const updatedLevel = await Level.findOneAndUpdate(
+                     {userID},
+                     {$push: {levels: newLevel}},
+                     {new: false}
+                 );
+                 console.log("Создан новый уровень:", updatedLevel);
+             }
+         } catch (e) {
+             console.error("Ошибка:", e);
+         }*/
+    }
+    ,
+
+
+    'complete_level':
+        async (ws, userID, message) => {
+
+            //try {
             const data = JSON.parse(message);
-            const levelIDToAdd = data._id;
+            const levelIDToAdd = data.id;
+            const money = data.money;
+            const progress = data.progress;
+            const isCompleted = data.compleated;
 
-            // Обновляем только если levelIDToAdd отсутствует в массиве levelsCompleted
-            const updatedLevel = await Level.findOneAndUpdate(
-                {userID, levelsCompleted: {$ne: levelIDToAdd}},
-                {$addToSet: {levelsCompleted: levelIDToAdd}},
-                {new: true, upsert: true}
+
+            if (isCompleted) {
+                // Обновляем только если levelIDToAdd отсутствует в массиве levelsCompleted
+                const updatedLevel = await Level.findOneAndUpdate(
+                    {userID, levelsCompleted: {$ne: levelIDToAdd}},
+                    {$addToSet: {levelsCompleted: levelIDToAdd}},
+                    {new: false}
+                );
+            }
+
+
+            // Обновляем деньги (Money)
+            await Inventory.findOneAndUpdate(
+                {userID},
+                {$inc: {money}},
+                {new: false}
             );
 
-            console.log("Обновленные уровни:", updatedLevel);
-        } catch (e) {
-            console.error("Ошибка:", e);
-        }
-    },
+
+            // // Обновляем прогресс (progress), если он был меньше
+            // await Level.findOneAndUpdate(
+            //     { userID, "levels.id": levelIDToAdd },
+            //     { $addToSet: { "levels.$.progress": progress } },
+            //     { new: true, upsert: true }
+            // );
 
 
-    'receive_level_reward': async (ws, userID, message) => {
-        try {
-            const data = JSON.parse(message);
-            const {levelID, rewardLevel} = data;
+            let userLevel = await Level.findOne({userID});
 
-            const foundLevel = await Level.findOne({userID, "levels.id": levelID});
+            if (userLevel) {
+                // Проверяем, существует ли у пользователя уровень с указанным levelIDToAdd
+                const levelIndex = userLevel.levels.findIndex(level => level.id === levelIDToAdd);
 
-            if (foundLevel) {
-                const level = foundLevel.levels.find(level => level.id === levelID);
-
-                if (level && level.progress >= rewardLevel) {
-                    // Добавляем награду в массив rewardsReceived
-                    const updatedLevel = await Level.findOneAndUpdate(
-                        {userID, "levels.id": levelID},
-                        {$push: {"levels.$.rewardsReceived": rewardLevel}},
-                        {new: true}
-                    );
-                    console.log("Награда успешно добавлена:", updatedLevel);
+                // Если уровень существует, обновляем его прогресс
+                if (levelIndex !== -1) {
+                    userLevel.levels[levelIndex].progress = progress;
                 } else {
-                    console.log("Прогресс недостаточно высокий для получения награды или уровень не найден.");
+                    // Если уровень не существует, добавляем новый уровень с указанным прогрессом
+                    userLevel.levels.push({id: levelIDToAdd, progress, rewardsReceived: 0});
                 }
-            } else {
-                console.log("Уровень не найден.");
-            }
-        } catch (e) {
-            console.error("Ошибка:", e);
-        }
-    },
 
-
-    'buy_hero': async (ws, userID, message) => {
-
-
-        try {
-
-            const data = JSON.parse(message);
-            const heroId = data._id;
-            // Находим инвентарь пользователя по userID
-            const inventory = await Inventory.findOne({userID: userID});
-
-            if (!inventory) {
-                throw new Error("Инвентарь пользователя не найден.");
+                // Сохраняем обновленного пользователя в базе данных
+                await userLevel.save();
             }
 
-            // Проверяем, достаточно ли у пользователя денег для покупки героя
-            if (inventory.money < 200) {
-                throw new Error("У вас недостаточно денег для покупки героя.");
+
+            /*  // Обновляем завершенные уровни (completed), если isCompleted true и до этого этого уровня не было в CompletedLevels
+              if (isCompleted) {
+                  await Inventory.findOneAndUpdate(
+                      {userID, "completedLevels": {$ne: levelIDToAdd}},
+                      {$addToSet: {completedLevels: levelIDToAdd}},
+                      {new: false}
+                  );
+              }*/
+
+
+            const userLevels = await Level.findOne({userID});
+
+            // Проверяем, существует ли пользователь и его уровни
+            if (userLevels) {
+                // Находим уровень с идентификатором levelID в массиве levels пользователя
+                const level = userLevels.levels.find(level => level.id == levelIDToAdd);
+                console.log(userLevels)
+                if (level) {
+                    const progressForLevel = level.progress;
+                    const rewardsForLevel = Rewards.levels[levelIDToAdd];
+
+                    let RewardsToAdd = [];
+
+                    if (rewardsForLevel) {
+                        rewardsForLevel.forEach((reward) => {
+                                if (reward.progress > progressForLevel && reward.progress <= progress) {
+                                    RewardsToAdd.push(reward)
+                                }
+
+                        })
+                    }
+
+                    console.log("RewardsToAdd: " + RewardsToAdd)
+                    const inventory = await Inventory.findOne({userID: userID});
+                    if (inventory) {
+                        await RewardsToAdd.forEach((reward) => {
+                            inventory.money += reward.money;
+                            reward.items.forEach((item) => {
+
+                                addNewItemToInventory(userID, {
+                                    id: item,
+                                    level: 1,
+                                    rarity: 0,
+                                    isEquipped: false
+                                })
+                            })
+                        })
+                        inventory.save();
+                    }
+
+                }
+
+
+            }
+            //   console.log("Обновленные уровни:", updatedLevel);
+            /*    } catch (e) {
+                    console.error("Ошибка:", e);
+                }*/
+
+//
+// // REWARDS
+//
+//                 // Находим пользователя в базе данных
+//                 const userLevels = await Level.findOne({ userID });
+//
+// // Проверяем, существует ли пользователь и его прогресс
+//                 if (userInventory && progress) {
+//                     // Получаем все уровни, которые еще не были завершены
+//                     const levelsNotCompleted = userLevels.levels.filter(level => !userInventory.levelsCompleted.includes(level.id));
+//
+//                     // Получаем все награды для уровней до указанного прогресса, которые еще не были получены
+//                     const rewardsToReceive = [];
+//                     for (const level of levelsNotCompleted) {
+//                         if (level.progress <= progress) {
+//                             for (const reward of Rewards.levels[level.id]) {
+//                                 if (!level.rewardsReceived.includes(reward.level)) {
+//                                     rewardsToReceive.push(reward);
+//                                 }
+//                             }
+//                         }
+//                     }
+
+
+//             try {
+//                 const data = JSON.parse(message);
+//                 const levelIDToAdd = data.id;
+// /*                const money = data.money;
+//                 const progress = data.progress;
+//                 const isCompleted = data.completed;*/
+//
+//                 // Обновляем только если levelIDToAdd отсутствует в массиве levelsCompleted
+//                 const updatedLevel = await Level.findOneAndUpdate(
+//                     {userID, levelsCompleted: {$ne: levelIDToAdd}},
+//                     {$addToSet: {levelsCompleted: levelIDToAdd}},
+//                     {new: false, upsert: true}
+//                 );
+//
+//                 console.log("Обновленные уровни:", updatedLevel);
+//             } catch (e) {
+//                 console.error("Ошибка:", e);
+//             }
+        },
+
+
+    'receive_level_reward':
+        async (ws, userID, message) => {
+            try {
+                const data = JSON.parse(message);
+                const {levelID, rewardLevel} = data;
+
+                const foundLevel = await Level.findOne({userID, "levels.id": levelID});
+
+                if (foundLevel) {
+                    const level = foundLevel.levels.find(level => level.id === levelID);
+
+                    if (level && level.progress >= rewardLevel) {
+                        // Добавляем награду в массив rewardsReceived
+                        const updatedLevel = await Level.findOneAndUpdate(
+                            {userID, "levels.id": levelID},
+                            {$push: {"levels.$.rewardsReceived": rewardLevel}},
+                            {new: true}
+                        );
+                        console.log("Награда успешно добавлена:", updatedLevel);
+                    } else {
+                        console.log("Прогресс недостаточно высокий для получения награды или уровень не найден.");
+                    }
+                } else {
+                    console.log("Уровень не найден.");
+                }
+            } catch (e) {
+                console.error("Ошибка:", e);
+            }
+        },
+
+
+    'buy_hero':
+        async (ws, userID, message) => {
+
+
+            try {
+
+                const data = JSON.parse(message);
+                const heroId = data._id;
+                // Находим инвентарь пользователя по userID
+                const inventory = await Inventory.findOne({userID: userID});
+
+                if (!inventory) {
+                    throw new Error("Инвентарь пользователя не найден.");
+                }
+
+                // Проверяем, достаточно ли у пользователя денег для покупки героя
+                if (inventory.money < 200) {
+                    throw new Error("У вас недостаточно денег для покупки героя.");
+                }
+
+                const isHeroExist = inventory.heroes.some(hero => hero.id === heroId);
+                if (isHeroExist) {
+                    throw new Error("Герой с указанным ID уже существует в вашем инвентаре.");
+                }
+
+                // Уменьшаем количество денег у пользователя на 200
+                inventory.money -= 200;
+
+                // Создаем нового героя
+                const newHero = {
+                    id: heroId, // Генерируйте уникальный id для героя
+                    level: 0 // Уровень по умолчанию
+                };
+
+                // Добавляем нового героя в массив героев инвентаря пользователя
+                inventory.heroes.push(newHero);
+
+                // Сохраняем изменения
+                await inventory.save();
+                console.log("Герой успешно куплен!");
+
+                const sendData = {type: "hero_purchased_successfully"};
+                const jsonData = JSON.stringify(sendData);
+                ws.send(jsonData);
+
+
+            } catch (error) {
+                console.error("Произошла ошибка:", error.message);
+                // Выбрасываем ошибку, чтобы она была перехвачена снаружи этой функции
+
+                const sendData = {type: "hero_purchased_failed"};
+                const jsonData = JSON.stringify(sendData);
+                ws.send(jsonData);
+            }
+        },
+
+
+    'request_heroes_data':
+        async (ws, userID, message) => {
+
+            try {
+                // Находим инвентарь пользователя по userID
+                const inventory = await Inventory.findOne({userID: userID});
+
+                if (!inventory) {
+                    throw new Error("Инвентарь пользователя не найден.");
+                }
+
+                // Получаем список купленных героев и их уровень
+                const heroesList = inventory.heroes.map(hero => ({
+                    id: hero.id,
+                    level: hero.level
+                }));
+
+                const jsonData = JSON.stringify({type: 'get_heroes_data', heroes: heroesList});
+                ws.send(jsonData)
+
+            } catch (error) {
+                console.error("Произошла ошибка:", error.message);
             }
 
-            const isHeroExist = inventory.heroes.some(hero => hero.id === heroId);
-            if (isHeroExist) {
-                throw new Error("Герой с указанным ID уже существует в вашем инвентаре.");
-            }
+        },
 
-            // Уменьшаем количество денег у пользователя на 200
-            inventory.money -= 200;
+    'upgrade_hero':
+        async (ws, userID, message) => {
 
-            // Создаем нового героя
-            const newHero = {
-                id: heroId, // Генерируйте уникальный id для героя
-                level: 0 // Уровень по умолчанию
-            };
+            try {
 
-            // Добавляем нового героя в массив героев инвентаря пользователя
-            inventory.heroes.push(newHero);
+                const data = JSON.parse(message);
+                const heroId = data._id;
 
-            // Сохраняем изменения
-            await inventory.save();
-            console.log("Герой успешно куплен!");
+                // Находим инвентарь пользователя по userID
+                const inventory = await Inventory.findOne({userID: userID});
 
-            const sendData = {type: "hero_purchased_successfully"};
-            const jsonData = JSON.stringify(sendData);
-            ws.send(jsonData);
+                if (!inventory) {
+                    throw new Error("Инвентарь пользователя не найден.");
+                }
 
+                // Находим героя по его ID
+                const heroIndex = inventory.heroes.findIndex(hero => hero.id === heroId);
 
-        } catch (error) {
-            console.error("Произошла ошибка:", error.message);
-            // Выбрасываем ошибку, чтобы она была перехвачена снаружи этой функции
+                if (heroIndex === -1) {
+                    throw new Error("Герой с указанным ID не найден в вашем инвентаре.");
+                }
 
-            const sendData = {type: "hero_purchased_failed"};
-            const jsonData = JSON.stringify(sendData);
-            ws.send(jsonData);
-        }
-    },
+                // Подсчитываем стоимость улучшения уровня героя
+                const upgradeCost = (inventory.heroes[heroIndex].level + 1) * 200;
+
+                // Проверяем, достаточно ли у пользователя денег для улучшения
+                if (inventory.money < upgradeCost) {
+                    throw new Error("У вас недостаточно денег для улучшения уровня героя.");
+                }
+
+                // Уменьшаем количество денег у пользователя
 
 
-    'request_heroes_data': async (ws, userID, message) => {
+                const money = inventory.money -= upgradeCost;
 
-        try {
-            // Находим инвентарь пользователя по userID
-            const inventory = await Inventory.findOne({userID: userID});
-
-            if (!inventory) {
-                throw new Error("Инвентарь пользователя не найден.");
-            }
-
-            // Получаем список купленных героев и их уровень
-            const heroesList = inventory.heroes.map(hero => ({
-                id: hero.id,
-                level: hero.level
-            }));
-
-            const jsonData = JSON.stringify({type: 'get_heroes_data', heroes: heroesList});
-            ws.send(jsonData)
-
-        } catch (error) {
-            console.error("Произошла ошибка:", error.message);
-        }
-
-    },
-
-    'upgrade_hero': async (ws, userID, message) => {
-
-        try {
-
-            const data = JSON.parse(message);
-            const heroId = data._id;
-
-            // Находим инвентарь пользователя по userID
-            const inventory = await Inventory.findOne({userID: userID});
-
-            if (!inventory) {
-                throw new Error("Инвентарь пользователя не найден.");
-            }
-
-            // Находим героя по его ID
-            const heroIndex = inventory.heroes.findIndex(hero => hero.id === heroId);
-
-            if (heroIndex === -1) {
-                throw new Error("Герой с указанным ID не найден в вашем инвентаре.");
-            }
-
-            // Подсчитываем стоимость улучшения уровня героя
-            const upgradeCost = (inventory.heroes[heroIndex].level + 1) * 200;
-
-            // Проверяем, достаточно ли у пользователя денег для улучшения
-            if (inventory.money < upgradeCost) {
-                throw new Error("У вас недостаточно денег для улучшения уровня героя.");
-            }
-
-            // Уменьшаем количество денег у пользователя
-
-
-            const money = inventory.money -= upgradeCost;
-
-            // Увеличиваем уровень героя
-            inventory.heroes[heroIndex].level++;
-            updateMoneyOnClient(ws, money);
-            // Сохраняем изменения
-            await inventory.save();
-
-
-            console.log("Уровень героя успешно увеличен!");
-
-        } catch (error) {
-            console.error("Произошла ошибка:", error.message);
-        }
-
-
-    },
-
-
-    'open_loot_box': async (ws, userID, message) => {
-
-        try {
-            const data = JSON.parse(message);
-            const inventory = await Inventory.findOne({userID});
-
-
-            const price = lootBoxPrice[data._id];
-            if (inventory.money >=price ) {
-
-                // Обновляем уровень предмета
-                inventory.money = Math.max(inventory.money - price, 0);
-
-                const items = InventoryData.EquipmentItems;
-                const itemID = items[Math.floor(Math.random() * items.length)]
-
-
-                await addNewItemToInventory(userID, {
-                    id: itemID,
-                    level: 1,
-                    rarity: 1,
-                    isEquipped: false
-                });
-
-                // Сохраняем изменения в базе данных
+                // Увеличиваем уровень героя
+                inventory.heroes[heroIndex].level++;
+                updateMoneyOnClient(ws, money);
+                // Сохраняем изменения
                 await inventory.save();
 
-                await lootBoxResult(ws, userID, itemID);
 
+                console.log("Уровень героя успешно увеличен!");
+
+            } catch (error) {
+                console.error("Произошла ошибка:", error.message);
             }
-        } catch (e) {
-            console.log(e);
-        }
-    },
 
 
-    'SomeFun': (ws, userID, message) => {
+        },
 
 
-    },
+    'open_loot_box':
+        async (ws, userID, message) => {
+
+            try {
+                const data = JSON.parse(message);
+                const inventory = await Inventory.findOne({userID});
+
+
+                const price = lootBoxPrice[data._id];
+                if (inventory.money >= price) {
+
+                    // Обновляем уровень предмета
+                    inventory.money = Math.max(inventory.money - price, 0);
+
+                    const items = InventoryData.EquipmentItems;
+                    const itemID = items[Math.floor(Math.random() * items.length)]
+
+
+                    await addNewItemToInventory(userID, {
+                        id: itemID,
+                        level: 1,
+                        rarity: 1,
+                        isEquipped: false
+                    });
+
+                    // Сохраняем изменения в базе данных
+                    await inventory.save();
+
+                    await lootBoxResult(ws, userID, itemID);
+
+                }
+            } catch (e) {
+                console.log(e);
+            }
+        },
+
+
+    'request_level_rewards_data':
+        (ws, userID, message) => {
+            try {
+                const data = {type: "levels_rewards", levels: Rewards.levels}
+                console.log(data)
+                ws.send(JSON.stringify(data));
+            } catch (e) {
+                console.log(e)
+            }
+        },
+
+
+    'SomeFun':
+        (ws, userID, message) => {
+
+
+        },
 };
 
 

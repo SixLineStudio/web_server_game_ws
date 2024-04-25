@@ -9,6 +9,7 @@ const secretKey = require("../static_data/Keys");
 const {v4: uuidv4} = require("uuid")
 const {generateJwt} = require("./functions");
 
+
 function handleConnection(ws) {
 
     console.log('Новое подключение');
@@ -57,12 +58,17 @@ async function connectUser(ws, data) {
             }
         } else {
             user = await User.findOne({jwt: data.jwt});
+            if (!user) {
+                const obj = {type: "request_reg_data"}
+                ws.send(JSON.stringify(obj))
+                throw new Error("Пользователь не найден по токену. Отправлен запрос на получение регистрационных данных")
+            }
         }
 
         if (user) {
             clients.set(ws, user.userID);
             console.log("Пользователь подключен:" + user.userID)
-            OnUserConnected(ws);
+            OnUserConnected(ws, user.jwt);
         } else {
             registerUser(ws, data);
 
@@ -101,9 +107,10 @@ async function registerUser(ws, data) {
 
     const newInventory = new Inventory({
         userID: uuid,
-        money: 100,
+        money: 1000000,
+        gems: 100,
         items: [],
-        heroes: [{id: "BaseHero", level: 0}]
+        heroes: [{id: "BaseHero", level: 1}]
     });
 
 
@@ -141,7 +148,8 @@ async function registerUser(ws, data) {
 function OnUserConnected(ws, jwt) {
 
     try {
-        const Obj = {type: "user_connected", jwt}
+        console.log("JWT CONNECTz: " + jwt)
+        const Obj = {type: "user_connected", jwt: jwt}
         ws.send(JSON.stringify(Obj))
     } catch (e) {
         console.log(e)

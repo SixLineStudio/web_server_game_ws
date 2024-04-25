@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const inventorySchema = new mongoose.Schema({
     userID: String,
     money: Number,
+    gems: Number,
     items: [{
         id: String,
         level: Number,
