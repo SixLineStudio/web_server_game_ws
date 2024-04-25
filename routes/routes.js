@@ -466,17 +466,16 @@ const routes = {
                 const level = userLevels.levels.find(level => level.id == levelIDToAdd);
                 console.log(userLevels)
                 if (level) {
-                    const progressForLevel = level.progress;
+                    const rewardsReceived = level.rewardsReceived;
                     const rewardsForLevel = Rewards.levels[levelIDToAdd];
 
                     let RewardsToAdd = [];
 
                     if (rewardsForLevel) {
                         rewardsForLevel.forEach((reward) => {
-                                if (reward.progress > progressForLevel && reward.progress <= progress) {
+                                if (reward.progress <= progress && reward.progress > rewardsReceived) {
                                     RewardsToAdd.push(reward)
                                 }
-
                         })
                     }
 
@@ -495,6 +494,9 @@ const routes = {
                                 })
                             })
                         })
+
+                        level.rewardsReceived = progress;
+                        userLevels.save();
                         inventory.save();
                     }
 
