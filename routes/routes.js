@@ -400,10 +400,12 @@ const routes = {
             const levelIDToAdd = data.id;
             const money = data.money;
             const progress = data.progress;
-            const isCompleted = data.compleated;
+            const isCompleted = data.completed;
 
 
-            if (isCompleted) {
+            console.log("Completed: " + isCompleted);
+            console.log(message);
+            if (isCompleted === '1') {
                 // Обновляем только если levelIDToAdd отсутствует в массиве levelsCompleted
                 const updatedLevel = await Level.findOneAndUpdate(
                     {userID, levelsCompleted: {$ne: levelIDToAdd}},
@@ -411,14 +413,6 @@ const routes = {
                     {new: false}
                 );
             }
-
-
-            // Обновляем деньги (Money)
-            await Inventory.findOneAndUpdate(
-                {userID},
-                {$inc: {money}},
-                {new: false}
-            );
 
 
             // // Обновляем прогресс (progress), если он был меньше
@@ -458,6 +452,14 @@ const routes = {
               }*/
 
 
+            // Обновляем деньги (Money)
+            await Inventory.findOneAndUpdate(
+                {userID},
+                {$inc: {money}},
+                {new: false}
+            );
+
+
             const userLevels = await Level.findOne({userID});
 
             // Проверяем, существует ли пользователь и его уровни
@@ -473,9 +475,9 @@ const routes = {
 
                     if (rewardsForLevel) {
                         rewardsForLevel.forEach((reward) => {
-                                if (reward.progress <= progress && reward.progress > rewardsReceived) {
-                                    RewardsToAdd.push(reward)
-                                }
+                            if (reward.progress <= progress && reward.progress > rewardsReceived) {
+                                RewardsToAdd.push(reward)
+                            }
                         })
                     }
 
@@ -483,7 +485,10 @@ const routes = {
                     const inventory = await Inventory.findOne({userID: userID});
                     if (inventory) {
                         await RewardsToAdd.forEach((reward) => {
+
                             inventory.money += reward.money;
+                            //inventory.gems += reward.gems;
+
                             reward.items.forEach((item) => {
 
                                 addNewItemToInventory(userID, {
@@ -822,6 +827,18 @@ function updateMoneyOnClient(ws, money) {
 
     try {
         const dataObject = {type: "money_data", money: money};
+        const jsonData = JSON.stringify(dataObject);
+        console.log(jsonData)
+        ws.send(jsonData);
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+function updateGemsOnClient(ws, gems) {
+
+    try {
+        const dataObject = {type: "gems_data", gems};
         const jsonData = JSON.stringify(dataObject);
         console.log(jsonData)
         ws.send(jsonData);
