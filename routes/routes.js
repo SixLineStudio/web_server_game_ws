@@ -16,9 +16,11 @@ const routes = {
 
             const data = JSON.parse(message)
             data.items.forEach((value, index, array) => {
-                let Item = {id: value.id, level: value.level, rarity: value.rarity, isEquipped: false};
-                for (let x = 0; x < value.amount; ++x) {
-                    itemsToAdd.push(Item)
+                if (value.id) {
+                    let Item = {id: value.id, level: value.level, rarity: value.rarity, isEquipped: false};
+                    for (let x = 0; x < value.amount; ++x) {
+                        itemsToAdd.push(Item)
+                    }
                 }
             })
 
@@ -768,6 +770,28 @@ const routes = {
                 const data = {type: "levels_rewards", levels: Rewards.levels}
                 console.log(data)
                 ws.send(JSON.stringify(data));
+            } catch (e) {
+                console.log(e)
+            }
+        },
+
+    'clear_progress':
+        async (ws, userID, message) => {
+            try {
+                const inventory = await Inventory.findOne({userID});
+                if (inventory) {
+                    inventory.items = [];
+                    inventory.money = 1000;
+                    inventory.gems = 1000;
+                    inventory.heroes = [{id: "BaseHero", level: 1}]
+                    inventory.save();
+                }
+                const level = await Level.findOne({userID});
+                if (level) {
+                    level.levelsCompleted = [];
+                    level.levels = [];
+                    level.save();
+                }
             } catch (e) {
                 console.log(e)
             }
