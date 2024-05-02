@@ -3,6 +3,7 @@ const Level = require("../data_base/Level");
 const [InventoryData, lootBoxPrice] = require("../static_data/InventoryData");
 const ObjectId = require('mongoose').Types.ObjectId
 const Rewards = require("../Components/LevelRewards")
+const [heroUpgradeCost, itemUpgradeCost] = require("../static_data/Costs")
 
 
 const routes = {
@@ -53,7 +54,8 @@ const routes = {
         // Если предмет найден в инвентаре
         if (itemIndex !== -1) {
 
-            const price = inventory.items[itemIndex].level * 200;
+            const price =  itemUpgradeCost(inventory.items[itemIndex].level)
+             //inventory.items[itemIndex].level * 200;
 
             if (inventory.money >= price) {
 
@@ -698,7 +700,8 @@ const routes = {
                 }
 
                 // Подсчитываем стоимость улучшения уровня героя
-                const upgradeCost = (inventory.heroes[heroIndex].level + 1) * 200;
+                const upgradeCost = heroUpgradeCost(inventory.heroes[heroIndex].level);
+
 
                 // Проверяем, достаточно ли у пользователя денег для улучшения
                 if (inventory.money < upgradeCost) {
