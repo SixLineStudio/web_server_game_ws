@@ -128,11 +128,7 @@ async function registerUser(ws, data) {
     });
 
     const levels = await newLevels.save();
-    /*    if (heroes) {
-            console.log("Уровни созданы")
-        } else {
-            console.log("Ошибка при создании Уровней")
-        }*/
+
     console.log("Пользователь зарегестрирован:" + userId)
     clients.set(ws, uuid);
     console.log("Пользователь подключен:" + userId)
@@ -156,23 +152,6 @@ function OnUserConnected(ws, jwt) {
     }
 
 }
-
-/*async function findUser(userID) {
-    // Находим пользователя по его имени
-    return await User.findOne({userID: userID})
-        .then(user => {
-            if (user) {
-                console.log('Найден пользователь:', user);
-                return user;
-            } else {
-                console.log('Пользователь не найден');
-                return null
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка при поиске пользователя:', error);
-        });
-}*/
 
 
 module.exports = {handleConnection};
