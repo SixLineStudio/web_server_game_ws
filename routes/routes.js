@@ -331,67 +331,12 @@ const routes = {
 
                 }
             } else {
-                /* // Если уровень не найден, создаем новый
-                 const newLevel = {
-                     id: data._id,
-                     progress: data.progress,
-                     rewardsReceived: []
-                 };
-                  // Добавляем новый уровень в массив levels
-                  const updatedLevel = await Level.findOneAndUpdate(
-                      {userID},
-                      {$push: {levels: newLevel}},
-                      {new: false}
-                  );
-                 console.log("Создан новый уровень:", updatedLevel);*/
+
             }
         } catch
             (e) {
             console.error("Ошибка:", e);
         }
-
-
-        /* try {
-             const data = JSON.parse(message);
-
-             // Находим уровень по userID и ID
-             const foundLevel = await Level.findOne({userID, "levels.id": data._id});
-
-             if (foundLevel) {
-                 const levelIndex = foundLevel.levels.findIndex(level => level.id === data._id);
-
-                 if (levelIndex !== -1 && data.progress > foundLevel.levels[levelIndex].progress) {
-                     // Обновляем прогресс уровня
-                     const updatedLevel = await Level.findOneAndUpdate(
-                         {userID, "levels.id": data._id},
-                         {$set: {"levels.$.progress": data.progress}},
-                         {new: false}
-                     );
-
-
-                     console.log("Обновленные данные в левеле:", updatedLevel);
-                 } else {
-                     console.log("Новое значение прогресса меньше.");
-                 }
-             } else {
-                 // Если уровень не найден, создаем новый
-                 const newLevel = {
-                     id: data._id,
-                     progress: data.progress,
-                     rewardsReceived: []
-                 };
-
-                 // Добавляем новый уровень в массив levels
-                 const updatedLevel = await Level.findOneAndUpdate(
-                     {userID},
-                     {$push: {levels: newLevel}},
-                     {new: false}
-                 );
-                 console.log("Создан новый уровень:", updatedLevel);
-             }
-         } catch (e) {
-             console.error("Ошибка:", e);
-         }*/
     }
     ,
 
@@ -418,15 +363,6 @@ const routes = {
                 );
             }
 
-
-            // // Обновляем прогресс (progress), если он был меньше
-            // await Level.findOneAndUpdate(
-            //     { userID, "levels.id": levelIDToAdd },
-            //     { $addToSet: { "levels.$.progress": progress } },
-            //     { new: true, upsert: true }
-            // );
-
-
             let userLevel = await Level.findOne({userID});
 
             if (userLevel) {
@@ -446,14 +382,7 @@ const routes = {
             }
 
 
-            /*  // Обновляем завершенные уровни (completed), если isCompleted true и до этого этого уровня не было в CompletedLevels
-              if (isCompleted) {
-                  await Inventory.findOneAndUpdate(
-                      {userID, "completedLevels": {$ne: levelIDToAdd}},
-                      {$addToSet: {completedLevels: levelIDToAdd}},
-                      {new: false}
-                  );
-              }*/
+
 
 
             // Обновляем деньги (Money)
@@ -513,53 +442,6 @@ const routes = {
 
 
             }
-            //   console.log("Обновленные уровни:", updatedLevel);
-            /*    } catch (e) {
-                    console.error("Ошибка:", e);
-                }*/
-
-//
-// // REWARDS
-//
-//                 // Находим пользователя в базе данных
-//                 const userLevels = await Level.findOne({ userID });
-//
-// // Проверяем, существует ли пользователь и его прогресс
-//                 if (userInventory && progress) {
-//                     // Получаем все уровни, которые еще не были завершены
-//                     const levelsNotCompleted = userLevels.levels.filter(level => !userInventory.levelsCompleted.includes(level.id));
-//
-//                     // Получаем все награды для уровней до указанного прогресса, которые еще не были получены
-//                     const rewardsToReceive = [];
-//                     for (const level of levelsNotCompleted) {
-//                         if (level.progress <= progress) {
-//                             for (const reward of Rewards.levels[level.id]) {
-//                                 if (!level.rewardsReceived.includes(reward.level)) {
-//                                     rewardsToReceive.push(reward);
-//                                 }
-//                             }
-//                         }
-//                     }
-
-
-//             try {
-//                 const data = JSON.parse(message);
-//                 const levelIDToAdd = data.id;
-// /*                const money = data.money;
-//                 const progress = data.progress;
-//                 const isCompleted = data.completed;*/
-//
-//                 // Обновляем только если levelIDToAdd отсутствует в массиве levelsCompleted
-//                 const updatedLevel = await Level.findOneAndUpdate(
-//                     {userID, levelsCompleted: {$ne: levelIDToAdd}},
-//                     {$addToSet: {levelsCompleted: levelIDToAdd}},
-//                     {new: false, upsert: true}
-//                 );
-//
-//                 console.log("Обновленные уровни:", updatedLevel);
-//             } catch (e) {
-//                 console.error("Ошибка:", e);
-//             }
         },
 
 
@@ -837,10 +719,6 @@ async function requestInventoryData(ws, userID) {
     try {
         const inventory = await Inventory.findOne({userID});
         if (inventory) {
-            /* const modifiedInventory = inventory.map(item => {
-                 return { ...item, type: 'get_inventory_data' };*/
-            //  console.log({...inventory._doc, type: 'get_inventory_data'})// Добавляем переменную type
-
             ws.send(JSON.stringify({...inventory._doc, type: 'get_inventory_data'}));
         }
     } catch (e) {
